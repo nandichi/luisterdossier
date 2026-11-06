@@ -228,43 +228,89 @@
   /* ---------- tracks ---------- */
   var player = $("#player");
   var currentBtn = null;
+  var nowbar = $("#nowbar"), nowimg = $("#nowimg"), nowtitle = $("#nowtitle"),
+      nowartist = $("#nowartist"), nowtime = $("#nowtime"), nowfill = $("#nowfill"),
+      nowtoggle = $("#nowtoggle");
+  function fmt(s) {
+    s = Math.max(0, Math.floor(s || 0));
+    return Math.floor(s / 60) + ":" + ("0" + (s % 60)).slice(-2);
+  }
+  function showNow(t) {
+    if (!nowbar) return;
+    nowimg.src = t.img || "";
+    nowtitle.textContent = t.name;
+    nowartist.textContent = t.artists || "";
+    nowbar.classList.add("on");
+    nowbar.setAttribute("aria-hidden", "false");
+  }
+  function hideNow() {
+    if (!nowbar) return;
+    nowbar.classList.remove("on");
+    nowbar.setAttribute("aria-hidden", "true");
+  }
   var tl = $("#tracklist");
   if (tl) {
-    D.tracks.slice(0, 14).forEach(function (t, i) {
+    D.tracks.forEach(function (t, i) {
       var li = el("li", "track");
       li.innerHTML =
         '<span class="pos">' + (i + 1 < 10 ? "0" + (i + 1) : i + 1) + "</span>" +
         '<span class="tcover"><img loading="lazy" src="' + (t.img || "") + '" alt="' + t.name + '"></span>' +
         '<span><span class="tt">' + t.name + '</span><span class="ta">' + (t.artists || "") + "</span></span>" +
         '<span class="tn"><b>' + nf.format(t.n) + "</b> keer</span>" +
-        '<button class="play" type="button" aria-label="Speel fragment van ' + t.name + '" title="' + (t.preview ? "30 seconden fragment" : "geen fragment beschikbaar") + '"' + (t.preview ? "" : " disabled") +
-        '><svg viewBox="0 0 10 12" aria-hidden="true"><path d="M0 0l10 6-10 6z"/></svg></button>';
+        '<button class="play" type="button" aria-label="Speel fragment van ' + t.name + '" title="30 seconden uit het nummer">' +
+        '<svg viewBox="0 0 10 12" aria-hidden="true"><path d="M0 0l10 6-10 6z"/></svg></button>' +
+        '<span class="tprog" aria-hidden="true"><i></i></span>';
       tl.appendChild(li);
 
       var btn = $(".play", li);
-      if (!t.preview) return;
+      if (!t.audio) return;
       btn.addEventListener("click", function () {
         if (currentBtn === btn && !player.paused) {
           player.pause();
           li.classList.remove("playing");
           btn.innerHTML = '<svg viewBox="0 0 10 12" aria-hidden="true"><path d="M0 0l10 6-10 6z"/></svg>';
+          var pb = $(".tprog i", li); if (pb) pb.style.width = "0%";
           currentBtn = null;
           return;
         }
         $$(".track.playing").forEach(function (x) { x.classList.remove("playing"); });
         $$(".play").forEach(function (b) { b.innerHTML = '<svg viewBox="0 0 10 12" aria-hidden="true"><path d="M0 0l10 6-10 6z"/></svg>'; });
-        player.src = t.preview;
+        $$(".tprog i").forEach(function (b) { b.style.width = "0%"; });
+        player.src = t.audio;
         player.play();
+        showNow(t);
         li.classList.add("playing");
         btn.innerHTML = '<svg viewBox="0 0 8 10" aria-hidden="true"><path d="M0 0h3v10H0zM5 0h3v10H5z"/></svg>';
         currentBtn = btn;
       });
     });
+    player.addEventListener("timeupdate", function () {
+      var row = $(".track.playing");
+      if (!row) return;
+      var bar = $(".tprog i", row);
+      var pctv = Math.min(100, (player.currentTime / (player.duration || 30)) * 100);
+      if (bar) bar.style.width = pctv + "%";
+      if (nowfill) nowfill.style.width = pctv + "%";
+      if (nowtime) nowtime.textContent = fmt(player.currentTime) + " / " + fmt(Math.round(player.duration || 30));
+    });
     player.addEventListener("ended", function () {
       $$(".track.playing").forEach(function (x) { x.classList.remove("playing"); });
       $$(".play").forEach(function (b) { b.innerHTML = '<svg viewBox="0 0 10 12" aria-hidden="true"><path d="M0 0l10 6-10 6z"/></svg>'; });
+      $$(".tprog i").forEach(function (b) { b.style.width = "0%"; });
       currentBtn = null;
+      hideNow();
     });
+    if (nowtoggle) {
+      nowtoggle.addEventListener("click", function () {
+        if (player.paused) {
+          player.play();
+          nowtoggle.innerHTML = '<svg viewBox="0 0 8 10" aria-hidden="true"><path d="M0 0h3v10H0zM5 0h3v10H5z"/></svg>';
+        } else {
+          player.pause();
+          nowtoggle.innerHTML = '<svg viewBox="0 0 10 12" aria-hidden="true"><path d="M0 0l10 6-10 6z"/></svg>';
+        }
+      });
+    }
   }
 
   /* ---------- albums ---------- */
@@ -272,11 +318,10 @@
   if (ag) {
     D.albums.slice(0, 9).forEach(function (a) {
       var name = a.name;
-      if (/^Album \d+$/.test(name)) name = "I LUV IT (single)";
       var art = el("article", "album");
       art.innerHTML =
         '<div class="art"><img loading="lazy" src="' + (a.img || "") + '" alt="' + name + '"><span class="n">' + nf.format(a.n) + "</span></div>" +
-        '<div class="an">' + name + '</div><div class="aa">' + (a.artist || "Camila Cabello") + (a.year ? " / " + a.year : "") + "</div>";
+                  '<div class="an">' + name + '</div><div class="aa">' + (a.artist || "onbekend") + (a.year ? " / " + a.year : "") + "</div>";
       ag.appendChild(art);
     });
   }
