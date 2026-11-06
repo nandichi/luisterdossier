@@ -239,13 +239,15 @@
     if (!nowbar) return;
     nowimg.src = t.img || "";
     nowtitle.textContent = t.name;
-    nowartist.textContent = t.artists || "";
+    nowartist.textContent = (t.artists || "") + " · fragment 0:30";
     nowbar.classList.add("on");
+    document.body.classList.add("has-now");
     nowbar.setAttribute("aria-hidden", "false");
   }
   function hideNow() {
     if (!nowbar) return;
     nowbar.classList.remove("on");
+    document.body.classList.remove("has-now");
     nowbar.setAttribute("aria-hidden", "true");
   }
   var tl = $("#tracklist");
@@ -300,6 +302,14 @@
       currentBtn = null;
       hideNow();
     });
+    var nowprog = $(".nowprog");
+    if (nowprog) {
+      nowprog.addEventListener("click", function (e) {
+        var r = nowprog.getBoundingClientRect();
+        var p = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+        if (player.duration) player.currentTime = p * player.duration;
+      });
+    }
     if (nowtoggle) {
       nowtoggle.addEventListener("click", function () {
         if (player.paused) {
